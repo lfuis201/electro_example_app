@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Aplicación Electron</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        p {
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Bienvenido a mi Aplicación Electron</h1>
+    <p>Esta es una aplicación de escritorio básica creada con Electron.</p>
+    <input type="file" id="fileInput" accept=".csv" onchange="handleFile(event)">
+    <button onclick="convertToJson()">Convertir a JSON</button>
+    <button onclick="sendJsonToServer()">Enviar JSON al servidor</button>
+    <hr>
+    <div id="csvData"></div>
+    <div id="jsonOutput"></div>
+
+    <script>
+        let csvData = [];
+        let jsonData = null;
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const csv = event.target.result;
+                csvData = csv.split('\n').map(line => line.split(',').map(cell => cell.trim()));
+                showCSVData();
+            };
+
+            reader.readAsText(file);
+        }
+
+        function showCSVData() {
+            const table = document.createElement('table');
+            const tbody = document.createElement('tbody');
+
+            csvData.forEach(rowData => {
+                const row = document.createElement('tr');
+                rowData.forEach(cellData => {
+                    const td = document.createElement('td');
+                    td.textContent = cellData;
+                    row.appendChild(td);
+                });
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(tbody);
+            document.getElementById('csvData').innerHTML = '';
+            document.getElementById('csvData').appendChild(table);
+        }
+
+        function convertToJson() {
+            jsonData = csvData.map(rowData => {
+                return rowData.reduce((obj, cellData, index) => {
+                    obj[`column_${index + 1}`] = cellData;
+                    return obj;
+                }, {});
+            });
+
+            const jsonStr = JSON.stringify(jsonData, null, 2);
+            document.getElementById('jsonOutput').textContent = jsonStr;
+        }
+
+        function sendJsonToServer() {
+            if (csvData.length === 0) {
+                alert('Primero debes cargar un archivo CSV.');
+                return;
+            }
+
+            // Convertir los datos CSV a JSON si aún no se ha hecho
+            if (!jsonData) {
+                convertToJson();
+            }
+
+            fetch('https://sjc1.qualtrics.com/inbound-event/v1/events/json/triggers?urlTokenId=fb6e4f48-7487-4f09-a136-2753615c85bc', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response from server:', data);
+                alert('JSON enviado exitosamente al servidor.');
+            })
+            .catch(error => {
+                console.error('Error sending JSON:', error);
+                alert('Ocurrió un error al enviar el JSON al servidor.');
+            });
+        }
+
+    </script>
+</body>
+
+</html>
